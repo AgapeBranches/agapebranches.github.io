@@ -11,10 +11,10 @@ export default function Navbar() {
         <nav className="nav-links" aria-label="Primary">
           <Link to="/">Mission</Link>
           <Link to="/videos">Recipes & Videos</Link>
-          <a href="/#who">Who we are</a>
+          <Link to="/who-we-are">Who we are</Link>
           <Link to="/portal">Portal Login</Link>
         </nav>
-        <a href="/#join" className="nav-cta">Get involved</a>
+        <Link to="/get-involved" className="nav-cta">Get involved</Link>
       </div>
     </header>
   );

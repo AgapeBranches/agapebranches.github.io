@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function Home() {
   return (
     <main>
@@ -18,9 +20,9 @@ export default function Home() {
                 its value, potential, and positive impact on both people and planet.
               </p>
               <div className="hero-cta-row">
-                <a className="btn btn-primary" href="#join">
+                <Link className="btn btn-primary" to="/get-involved">
                   Volunteer with us <span className="arrow">→</span>
-                </a>
+                </Link>
                 <a className="btn btn-ghost" href="#mission">
                   Watch the show <span className="arrow">→</span>
                 </a>
@@ -116,29 +118,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="cta" id="join">
-        <div className="wrap">
-          <div className="cta-grid">
-            <div className="reveal in">
-              <span className="eyebrow cta-eyebrow">Join us</span>
-              <h2>
-                We're looking for people who can <em>cook, drive,</em> and&nbsp;care.
-              </h2>
-              <p className="cta-lede">
-                Agape Branches is seeking committed individuals — passionate about
-                community service — to transform rescued food into remarkable
-                meals on camera, and to help us collect from our food partners.
-                Join us on this journey of food, community, and shared purpose.
-              </p>
-              <div className="cta-actions">
-                <a className="btn btn-ochre" href="mailto:hello@agapebranches.org">
-                  Apply to volunteer <span className="arrow">→</span>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
     </main>
   );
 }

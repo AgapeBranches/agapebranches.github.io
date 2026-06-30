@@ -31,7 +31,7 @@ export default function Footer() {
             <ul>
               <li><Link to="/">What we do</Link></li>
               <li><Link to="/videos">Recipes & Videos</Link></li>
-              <li><a href="/#join">Get involved</a></li>
+              <li><Link to="/get-involved">Get involved</Link></li>
               <li><Link to="/portal">Volunteer Portal</Link></li>
             </ul>
           </div>
