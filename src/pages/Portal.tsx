@@ -6,14 +6,21 @@ export default function Portal() {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string>('volunteer');
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'logRescue' | 'adminRescues'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'logRescue' | 'adminRescues' | 'submitVideo'>('dashboard');
 
-  // Log Form State
+  // Log Rescue Form State
   const [partnerName, setPartnerName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
+  // Submit Video Form State
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoDesc, setVideoDesc] = useState('');
+  const [videoDuration, setVideoDuration] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+
   // Admin State
   const [allRescues, setAllRescues] = useState<any[]>([]);
 
@@ -79,6 +86,37 @@ export default function Portal() {
     }
   };
 
+  const submitVideo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setSubmitting(true);
+    
+    const { error } = await supabase.from('videos').insert([
+      {
+        title: videoTitle,
+        description: videoDesc,
+        duration: videoDuration,
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl
+      }
+    ]);
+
+    setSubmitting(false);
+
+    if (error) {
+      console.error(error);
+      alert('Error submitting video: ' + error.message);
+    } else {
+      alert('Video submitted successfully! It is now live on the Recipes page.');
+      setView('dashboard');
+      setVideoTitle('');
+      setVideoDesc('');
+      setVideoDuration('');
+      setVideoUrl('');
+      setThumbnailUrl('');
+    }
+  };
+
   const loadAdminRescues = async () => {
     setView('adminRescues');
     const { data, error } = await supabase
@@ -114,14 +152,14 @@ export default function Portal() {
                   <button onClick={() => setView('logRescue')} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                     Log a Food Rescue
                   </button>
+                  <button onClick={() => setView('submitVideo')} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', background: 'var(--moss)' }}>
+                    Submit a Video Recipe
+                  </button>
                   {role === 'admin' && (
                     <button onClick={loadAdminRescues} className="btn btn-ochre" style={{ width: '100%', justifyContent: 'center' }}>
                       Admin: View All Rescues
                     </button>
                   )}
-                  <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
-                    Submit a Video (Coming Soon)
-                  </button>
                 </div>
                 <button onClick={handleLogout} className="btn" style={{ width: '100%', justifyContent: 'center', background: 'var(--rule)', color: 'var(--ink)' }}>
                   Sign Out
@@ -150,6 +188,36 @@ export default function Portal() {
                   
                   <button type="submit" disabled={submitting} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '16px' }}>
                     {submitting ? 'Saving...' : 'Save Record'} <span className="arrow">→</span>
+                  </button>
+                </form>
+              </div>
+            ) : view === 'submitVideo' ? (
+              <div>
+                <button onClick={() => setView('dashboard')} style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', cursor: 'pointer', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="arrow" style={{ transform: 'rotate(180deg)' }}>→</span> Back to Dashboard
+                </button>
+                <h2 className="h3" style={{ marginBottom: '24px' }}>Submit a <em>Video</em></h2>
+                
+                <form onSubmit={submitVideo} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Recipe Title</label>
+                    <input type="text" value={videoTitle} onChange={e => setVideoTitle(e.target.value)} required placeholder="e.g. Rescued Bread Panzanella" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--rule)', background: 'var(--cream)', fontSize: '16px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Description</label>
+                    <textarea value={videoDesc} onChange={e => setVideoDesc(e.target.value)} required placeholder="Short description of the recipe..." rows={3} style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--rule)', background: 'var(--cream)', fontSize: '16px', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Duration (e.g., "1:30")</label>
+                    <input type="text" value={videoDuration} onChange={e => setVideoDuration(e.target.value)} required placeholder="1:30" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--rule)', background: 'var(--cream)', fontSize: '16px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Thumbnail URL (Optional)</label>
+                    <input type="url" value={thumbnailUrl} onChange={e => setThumbnailUrl(e.target.value)} placeholder="https://..." style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--rule)', background: 'var(--cream)', fontSize: '16px' }} />
+                  </div>
+                  
+                  <button type="submit" disabled={submitting} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '16px', background: 'var(--moss)' }}>
+                    {submitting ? 'Submitting...' : 'Publish Video'} <span className="arrow">→</span>
                   </button>
                 </form>
               </div>
