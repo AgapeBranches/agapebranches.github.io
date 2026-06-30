@@ -1,26 +1,37 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 export default function Portal() {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string>('volunteer');
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'logRescue'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'logRescue' | 'adminRescues'>('dashboard');
 
-  // Form State
+  // Log Form State
   const [partnerName, setPartnerName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Admin State
+  const [allRescues, setAllRescues] = useState<any[]>([]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkUser = async (session: Session | null) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        // Fetch role from profiles
+        const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+        if (data) setRole(data.role);
+      }
       setLoading(false);
-    });
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => checkUser(session));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      checkUser(session);
     });
 
     return () => subscription.unsubscribe();
@@ -50,7 +61,7 @@ export default function Portal() {
         partner_name: partnerName,
         quantity_kg: parseFloat(quantity),
         pickup_time: new Date(pickupTime).toISOString(),
-        status: 'completed' // For logging past rescues
+        status: 'completed'
       }
     ]);
 
@@ -68,6 +79,18 @@ export default function Portal() {
     }
   };
 
+  const loadAdminRescues = async () => {
+    setView('adminRescues');
+    const { data, error } = await supabase
+      .from('food_rescues')
+      .select('*, profiles(full_name, role)')
+      .order('pickup_time', { ascending: false });
+      
+    if (!error && data) {
+      setAllRescues(data);
+    }
+  };
+
   if (loading) {
     return (
       <main style={{ padding: '120px 0', minHeight: '80vh', display: 'flex', alignItems: 'center' }}>
@@ -78,19 +101,24 @@ export default function Portal() {
 
   return (
     <main style={{ padding: '120px 0', minHeight: '80vh', display: 'flex', alignItems: 'center' }}>
-      <div className="wrap" style={{ maxWidth: '480px', margin: '0 auto', width: '100%' }}>
+      <div className="wrap" style={{ maxWidth: view === 'adminRescues' ? '800px' : '480px', margin: '0 auto', width: '100%', transition: 'max-width 0.3s' }}>
         <div style={{ background: 'var(--paper)', padding: '40px', borderRadius: '24px', border: '1px solid var(--rule)', boxShadow: 'var(--shadow)' }}>
           
           {user ? (
             view === 'dashboard' ? (
               <div style={{ textAlign: 'center' }}>
-                <h1 className="h2" style={{ fontSize: '32px', marginBottom: '16px' }}>Welcome, <em>Volunteer</em></h1>
+                <h1 className="h2" style={{ fontSize: '32px', marginBottom: '16px' }}>Welcome, <em>{role === 'admin' ? 'Admin' : 'Volunteer'}</em></h1>
                 <p style={{ color: 'var(--ink-soft)', marginBottom: '32px' }}>Logged in as {user.email}</p>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
                   <button onClick={() => setView('logRescue')} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                     Log a Food Rescue
                   </button>
+                  {role === 'admin' && (
+                    <button onClick={loadAdminRescues} className="btn btn-ochre" style={{ width: '100%', justifyContent: 'center' }}>
+                      Admin: View All Rescues
+                    </button>
+                  )}
                   <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
                     Submit a Video (Coming Soon)
                   </button>
@@ -99,7 +127,7 @@ export default function Portal() {
                   Sign Out
                 </button>
               </div>
-            ) : (
+            ) : view === 'logRescue' ? (
               <div>
                 <button onClick={() => setView('dashboard')} style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', cursor: 'pointer', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className="arrow" style={{ transform: 'rotate(180deg)' }}>→</span> Back to Dashboard
@@ -124,6 +152,40 @@ export default function Portal() {
                     {submitting ? 'Saving...' : 'Save Record'} <span className="arrow">→</span>
                   </button>
                 </form>
+              </div>
+            ) : (
+              <div>
+                <button onClick={() => setView('dashboard')} style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', cursor: 'pointer', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="arrow" style={{ transform: 'rotate(180deg)' }}>→</span> Back to Dashboard
+                </button>
+                <h2 className="h3" style={{ marginBottom: '24px' }}>All Logged <em>Rescues</em></h2>
+                
+                {allRescues.length === 0 ? (
+                  <p>No food rescues have been logged yet.</p>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--rule)' }}>
+                          <th style={{ padding: '12px 8px' }}>Date</th>
+                          <th style={{ padding: '12px 8px' }}>Partner</th>
+                          <th style={{ padding: '12px 8px' }}>Quantity</th>
+                          <th style={{ padding: '12px 8px' }}>Volunteer</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allRescues.map(rescue => (
+                          <tr key={rescue.id} style={{ borderBottom: '1px solid var(--rule)' }}>
+                            <td style={{ padding: '12px 8px' }}>{new Date(rescue.pickup_time).toLocaleDateString()}</td>
+                            <td style={{ padding: '12px 8px' }}>{rescue.partner_name}</td>
+                            <td style={{ padding: '12px 8px' }}>{rescue.quantity_kg} kg</td>
+                            <td style={{ padding: '12px 8px' }}>{rescue.profiles?.full_name || 'Unknown'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )
           ) : (
