@@ -6,7 +6,7 @@ export default function Portal() {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string>('volunteer');
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'logRescue' | 'adminRescues' | 'submitVideo'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'logRescue' | 'adminRescues' | 'submitVideo' | 'adminUsers'>('dashboard');
 
   // Log Rescue Form State
   const [partnerName, setPartnerName] = useState('');
@@ -23,6 +23,7 @@ export default function Portal() {
 
   // Admin State
   const [allRescues, setAllRescues] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
 
   useEffect(() => {
     const checkUser = async (session: Session | null) => {
@@ -59,13 +60,7 @@ export default function Portal() {
     setSubmitting(true);
     
     const { error } = await supabase.from('food_rescues').insert([
-      {
-        volunteer_id: user.id,
-        partner_name: partnerName,
-        quantity_kg: parseFloat(quantity),
-        pickup_time: new Date(pickupTime).toISOString(),
-        status: 'completed'
-      }
+      { volunteer_id: user.id, partner_name: partnerName, quantity_kg: parseFloat(quantity), pickup_time: new Date(pickupTime).toISOString(), status: 'completed' }
     ]);
 
     setSubmitting(false);
@@ -105,11 +100,23 @@ export default function Portal() {
 
   const loadAdminRescues = async () => {
     setView('adminRescues');
-    const { data, error } = await supabase
-      .from('food_rescues')
-      .select('*, profiles(full_name, role)')
-      .order('pickup_time', { ascending: false });
+    const { data, error } = await supabase.from('food_rescues').select('*, profiles(full_name, role)').order('pickup_time', { ascending: false });
     if (!error && data) setAllRescues(data);
+  };
+
+  const loadAdminUsers = async () => {
+    setView('adminUsers');
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (!error && data) setAllUsers(data);
+  };
+
+  const updateRole = async (userId: string, newRole: string) => {
+    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+    if (error) {
+      alert('Error updating role: ' + error.message);
+    } else {
+      setAllUsers(allUsers.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    }
   };
 
   if (loading) {
@@ -120,7 +127,6 @@ export default function Portal() {
     );
   }
 
-  // Not logged in view (Dialog style)
   if (!user) {
     return (
       <main style={{ padding: '120px 0', minHeight: '80vh', display: 'flex', alignItems: 'center', background: 'var(--cream)' }}>
@@ -167,29 +173,25 @@ export default function Portal() {
         <h2 className="h4" style={{ color: 'var(--paper)', marginBottom: '40px' }}>Volunteer Panel</h2>
         
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-          <button style={sidebarButtonStyles(view === 'dashboard')} onClick={() => setView('dashboard')}>
-            Dashboard
-          </button>
-          <button style={sidebarButtonStyles(view === 'logRescue')} onClick={() => setView('logRescue')}>
-            Log a Rescue
-          </button>
-          <button style={sidebarButtonStyles(view === 'submitVideo')} onClick={() => setView('submitVideo')}>
-            Submit a Video
-          </button>
+          <button style={sidebarButtonStyles(view === 'dashboard')} onClick={() => setView('dashboard')}>Dashboard</button>
+          <button style={sidebarButtonStyles(view === 'logRescue')} onClick={() => setView('logRescue')}>Log a Rescue</button>
+          <button style={sidebarButtonStyles(view === 'submitVideo')} onClick={() => setView('submitVideo')}>Submit a Video</button>
+          
           {role === 'admin' && (
-            <button style={sidebarButtonStyles(view === 'adminRescues')} onClick={loadAdminRescues}>
-              Admin: All Rescues
-            </button>
+            <>
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '16px 0' }}></div>
+              <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7, padding: '0 16px', marginBottom: '8px' }}>Admin</p>
+              <button style={sidebarButtonStyles(view === 'adminRescues')} onClick={loadAdminRescues}>All Rescues</button>
+              <button style={sidebarButtonStyles(view === 'adminUsers')} onClick={loadAdminUsers}>Manage Users</button>
+            </>
           )}
         </nav>
 
-        {/* User Profile Panel at Bottom */}
+        {/* User Profile Panel */}
         <div style={{ marginTop: 'auto', background: 'rgba(0, 0, 0, 0.15)', padding: '20px', borderRadius: '12px' }}>
           <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: '4px' }}>Logged in as</p>
           <p style={{ fontWeight: 600, fontSize: '16px', marginBottom: '16px', wordBreak: 'break-all' }}>{user.email}</p>
-          <span style={{ display: 'inline-block', background: 'var(--ochre)', color: 'var(--moss)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '16px' }}>
-            {role}
-          </span>
+          <span style={{ display: 'inline-block', background: 'var(--ochre)', color: 'var(--moss)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '16px' }}>{role}</span>
           <button 
             onClick={handleLogout} 
             style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: 'var(--paper)', borderRadius: '6px', cursor: 'pointer', transition: 'background 0.2s' }}
@@ -201,7 +203,7 @@ export default function Portal() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <section style={{ flex: 1, padding: '60px 80px', overflowY: 'auto' }}>
         <div style={{ maxWidth: '800px' }}>
           {view === 'dashboard' && (
@@ -210,11 +212,11 @@ export default function Portal() {
               <p style={{ fontSize: '18px', color: 'var(--ink-soft)', marginBottom: '48px' }}>What would you like to do today?</p>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                <div onClick={() => setView('logRescue')} style={{ background: 'var(--paper)', padding: '32px', borderRadius: '16px', border: '1px solid var(--rule)', boxShadow: 'var(--shadow)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div onClick={() => setView('logRescue')} style={{ background: 'var(--paper)', padding: '32px', borderRadius: '16px', border: '1px solid var(--rule)', boxShadow: 'var(--shadow)', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
                   <h3 className="h4" style={{ marginBottom: '12px' }}>Log a Rescue</h3>
                   <p style={{ color: 'var(--ink-soft)' }}>Record a recent food pickup from a community partner.</p>
                 </div>
-                <div onClick={() => setView('submitVideo')} style={{ background: 'var(--paper)', padding: '32px', borderRadius: '16px', border: '1px solid var(--rule)', boxShadow: 'var(--shadow)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div onClick={() => setView('submitVideo')} style={{ background: 'var(--paper)', padding: '32px', borderRadius: '16px', border: '1px solid var(--rule)', boxShadow: 'var(--shadow)', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
                   <h3 className="h4" style={{ marginBottom: '12px' }}>Submit a Video</h3>
                   <p style={{ color: 'var(--ink-soft)' }}>Upload a recipe video to inspire the community.</p>
                 </div>
@@ -295,6 +297,51 @@ export default function Portal() {
                           <td style={{ padding: '16px 24px' }}>{rescue.partner_name}</td>
                           <td style={{ padding: '16px 24px', fontWeight: 600 }}>{rescue.quantity_kg} kg</td>
                           <td style={{ padding: '16px 24px', color: 'var(--ink-soft)' }}>{rescue.profiles?.full_name || 'Unknown'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === 'adminUsers' && (
+            <div className="reveal in">
+              <h2 className="h3" style={{ marginBottom: '32px' }}>Manage <em>Users</em></h2>
+              {allUsers.length === 0 ? (
+                <p>Loading users...</p>
+              ) : (
+                <div style={{ background: 'var(--paper)', borderRadius: '16px', border: '1px solid var(--rule)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead style={{ background: 'var(--cream)' }}>
+                      <tr>
+                        <th style={{ padding: '16px 24px', fontWeight: 600, borderBottom: '1px solid var(--rule)' }}>Name</th>
+                        <th style={{ padding: '16px 24px', fontWeight: 600, borderBottom: '1px solid var(--rule)' }}>Role</th>
+                        <th style={{ padding: '16px 24px', fontWeight: 600, borderBottom: '1px solid var(--rule)' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allUsers.map(u => (
+                        <tr key={u.id} style={{ borderBottom: '1px solid var(--rule)' }}>
+                          <td style={{ padding: '16px 24px' }}>{u.full_name || 'Unknown'}</td>
+                          <td style={{ padding: '16px 24px' }}>
+                            <span style={{ display: 'inline-block', background: u.role === 'admin' ? 'var(--ochre)' : 'var(--cream)', color: u.role === 'admin' ? 'var(--moss)' : 'var(--ink)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>
+                              {u.role}
+                            </span>
+                          </td>
+                          <td style={{ padding: '16px 24px' }}>
+                            {u.id !== user.id && (
+                              <select 
+                                value={u.role} 
+                                onChange={(e) => updateRole(u.id, e.target.value)}
+                                style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--rule)', background: 'var(--cream)' }}
+                              >
+                                <option value="volunteer">Volunteer</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
